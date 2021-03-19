@@ -1,0 +1,244 @@
+---
+title: "Team"
+author: "Shellie Jurchisin, Emily Pollock, Maddie Egbert"
+date: "3/19/2021"
+output: html_document
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library("tidyverse")
+```
+
+```{r}
+library("readxl")
+Defense <- read_excel('cyclonesFootball2020.xlsx', sheet = 'Defensive')
+str(Defense)
+
+Offense <- read_excel('cyclonesFootball2020.xlsx', sheet = 'Offensive')
+str(Offense)
+
+Bio <- read_excel('cyclonesFootball2020.xlsx', sheet = 'Biography')
+str(Bio)
+```
+
+#Cleaning Data
+#1:
+```{r}
+Bio <- Bio %>%
+  mutate(Name = as.factor(Name))
+str(Bio)
+```
+```{r}
+offClean <- Offense %>%
+  mutate(Name = as.factor(Name)) %>%
+  mutate(Opponent = as.factor(Opponent_Opponent))
+offClean = subset(offClean, select = -c(Opponent_Opponent) )
+str(offClean)
+```
+```{r}
+defClean <- Defense %>%
+  mutate(Name = as.factor(Name)) %>%
+  mutate(Opponent = as.factor(Opponent_Opponent))
+defClean = subset(defClean, select = -c(Opponent_Opponent) )
+str(defClean)
+```
+
+#2:
+```{r}
+offClean <- offClean %>% 
+  mutate_if(is.character, as.numeric)
+```
+```{r}
+defClean <- defClean %>% 
+  mutate_if(is.character, as.numeric)
+```
+```{r}
+Bio <- Bio %>%
+  mutate(Weight = as.numeric(Weight))
+```
+
+#3:
+```{r}
+bioClean <- Bio %>%
+  separate(Height,c('feet', 'inches'), sep = '-', convert = TRUE, remove = FALSE) %>%
+  mutate(feet = 12*feet + inches) %>%
+  select(-inches) %>%
+  rename(Height_In_Inches = feet) %>%
+  mutate(Height_In_Inches = as.numeric(Height_In_Inches))
+bioClean = subset(bioClean, select = -c(Height) )
+```
+
+```{r}
+str(bioClean)
+```
+```{r}
+str(offClean)
+```
+```{r}
+str(defClean)
+```
+
+#Tidying
+#1:
+```{r}
+offClean1 <- offClean %>%
+  pivot_longer(Receiving_REC:Passing_INT, names_to = 'stat', values_to = 'value')
+str(offClean1)
+```
+
+#2:
+```{r}
+ggplot(offClean1, aes(x=value)) + geom_histogram(binwidth = 30) + facet_wrap(~stat, scales = 'free_y')
+```
+#Explantion: Based off the outputs the histogram's above produced, I can see a few patterns. It looks like the only statistics that provided varied data were "Passing_YDS", "Receiving_YDS", "Rushing_ATT", and "Rushing_YDS". The others, "Passing_CMT_-ATT", "Passing_INT", "Passing_TD", "Receiving_REC", "Receiving_TD", and "Rushing_TD" either had no values (null values) or provided data values of zero. It also looks like four of the histogram's, "Passing_YDS", "Receiving_YDS", "Rushing_ATT", and "Rushing_YDS" are all skewed to the left, and "Passing_YDS" has outliers.
+
+#3:
+```{r}
+offOregon <- offClean[offClean$Opponent == 'Oregon',]
+str(offOregon)
+```
+```{r}
+offOklahoma <- offClean[offClean$Opponent == 'Oklahoma',]
+str(offOklahoma)
+```
+```{r}
+ggplot(offOregon, aes(x = Name, y = Receiving_YDS)) + geom_point() + theme(axis.text.x = element_text(angle = 90)) + ggtitle('ISU Player Receiving Yards vs. Oregon')
+```
+```{r}
+ggplot(offOklahoma, aes(x = Name, y = Receiving_YDS)) + geom_point() + theme(axis.text.x = element_text(angle = 90)) + ggtitle('ISU Player Receiving Yards vs. Oklahoma')
+```
+#Explanation: Based off the outputs the two scatterplots above produced, the receiving yards ISU players had against both Oregon and Oklahoma, it looks like ISU had better offense against Oklahoma. We can see this because ISU had more points on the plot with larger values for recieivng yards against Oklahoma compared to Oregon.
+
+#4:
+```{r}
+CityState <- bioClean %>%
+  separate(Hometown,c('City', 'State'), sep = ',', convert = TRUE, remove = FALSE) %>%
+  select(-Position, -Height_In_Inches, -Weight, -Class, -Hometown, -Highschool)
+CityState
+```
+
+#5:
+```{r}
+PlayersByState <- CityState %>%
+  group_by(State) %>%
+  summarize(count = n())
+PlayersByState
+```
+#Explanation: Most of the players are from the state Iowa, but 18 other states are also represented. Australia is in the data, but is not a state (obviously).
+
+#Joining Data Frames
+#1:
+```{r}
+offState <- offClean %>%
+  left_join(CityState, by = c('Name')) %>%
+  select(Name, State) %>%
+  distinct()
+offState
+```
+```{r}
+ggplot(offState, aes(x = Name, y = State)) + geom_point() + theme(axis.text.x = element_text(angle = 90)) + ggtitle('ISU Offense and State Origin')
+```
+```{r}
+defState <- defClean %>%
+  left_join(CityState, by = c('Name')) %>%
+  select(Name, State) %>%
+  distinct()
+defState
+```
+```{r}
+ggplot(defState, aes(x = Name, y = State)) + geom_point() + theme(axis.text.x = element_text(angle = 90)) + ggtitle('ISU Defense and State Origin')
+```
+
+#2:
+```{r}
+offPurdy <- offClean %>% 
+  group_by(Name) %>%
+  summarize(Passing_YDS = mean(as.numeric(Passing_YDS), na.rm=TRUE)) %>%
+  arrange(Passing_YDS)
+offPurdy
+```
+```{r}
+ggplot(offPurdy, aes(x = Name, y = Passing_YDS)) + geom_point() + theme(axis.text.x = element_text(angle = 90)) + ggtitle('ISU Player Passing Yards and Brock Purdy')
+```
+#Explanation: In terms of Brock Purdy's performance in "Passing_YDS" compared to the rest of the team, Brock performed at a much higher level than they did, as shown in the scatterplot.
+
+#3:
+```{r}
+Defense2 <- read_excel('cyclonesFootball2019.xlsx', sheet = 'Defensive 2')
+str(Defense2)
+
+Offense2 <- read_excel('cyclonesFootball2019.xlsx', sheet = 'Offensive 2')
+str(Offense2)
+```
+
+```{r}
+offClean2 <- Offense2 %>%
+  mutate(Name = as.factor(Name)) %>%
+  mutate(Opponent = as.factor(Opponent_Opponent))
+offClean2 = subset(offClean2, select = -c(Opponent_Opponent) )
+str(offClean2)
+```
+```{r}
+defClean2 <- Defense2 %>%
+  mutate(Name = as.factor(Name)) %>%
+  mutate(Opponent = as.factor(Opponent_Opponent))
+defClean2 = subset(defClean2, select = -c(Opponent_Opponent) )
+str(defClean2)
+```
+
+```{r}
+offClean2 <- offClean2 %>% 
+  mutate_if(is.character, as.numeric)
+str(offClean2)
+```
+```{r}
+defClean2 <- defClean2 %>% 
+  mutate_if(is.character, as.numeric)
+str(defClean2)
+```
+
+```{r}
+def2Clean2 <- defClean2 %>%
+  group_by(Name) %>%
+  summarize_at(vars(Tackles_Solo), list(Total_Solo_Tackles2019 = sum, Mean_Solo_Tackles2019 = mean))
+def2Clean2
+```
+```{r}
+def2Clean <- defClean %>%
+  group_by(Name) %>%
+  summarize_at(vars(Tackles_Solo), list(Total_Solo_Tackles2020 = sum, Mean_Solo_Tackles2020 = mean))
+def2Clean
+```
+
+```{r}
+off2Clean2 <- offClean2 %>%
+  group_by(Name) %>%
+  summarize_at(vars(Receiving_YDS), list(Total_Receiviving_YDS_2019 = sum, Mean_Receiving_YDS2019 = mean))
+off2Clean2
+```
+```{r}
+off2Clean <- offClean %>%
+  group_by(Name) %>%
+  summarize_at(vars(Receiving_YDS), list(Total_Receiviving_YDS_2020 = sum, Mean_Receiving_YDS2020 = mean))
+off2Clean
+```
+
+```{r}
+defprogress2019_to_2020 <- def2Clean2 %>% 
+  inner_join(def2Clean)
+defprogress2019_to_2020 <- defprogress2019_to_2020[c('Name', 'Total_Solo_Tackles2019', 'Total_Solo_Tackles2020', 'Mean_Solo_Tackles2019', 'Mean_Solo_Tackles2020')]
+defprogress2019_to_2020
+```
+```{r}
+offprogress2019_to_2020 <- off2Clean2 %>% 
+  inner_join(off2Clean)
+offprogress2019_to_2020 <- offprogress2019_to_2020[c('Name', 'Total_Receiviving_YDS_2019', 'Total_Receiviving_YDS_2020', 'Mean_Receiving_YDS2019', 'Mean_Receiving_YDS2020')]
+offprogress2019_to_2020
+```
+#Explanation:
+### For the defense players, JaQuan Bailey made the most progress in total solo tackles from the 2019 season to the 2020 season. He made 18 more solo tackles in 2020 than in 2019. This is the biggest improvement in solo tackles across all the defense players. JaQuan Bailey also made a big leap in mean solo tackles, going from an average of 0.50 in 2019 to an average of 1.67 in 2020.
+
+### For the offense players, Landen Akers made the most progress in total receiving yards from the 2019 season to the 2020 season. He had 160 more receiving yards in 2020 than he did in 2019. He also had the largest change in mean receiving yards, going from an average of 8.38 yards in 2019 to an average of 22.42 yards in 2020.
