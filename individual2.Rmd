@@ -1,0 +1,268 @@
+---
+title: "ds202_lab4"
+author: "Emily Pollock"
+date: "3/16/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+library(readxl)
+defense <- read_excel('cyclonesFootball2020.xlsx', sheet='Defensive')
+str(defense)
+offense <- read_excel('cyclonesFootball2020.xlsx', sheet='Offensive')
+str(offense)
+biography <- read_excel('cyclonesFootball2020.xlsx', sheet='Biography')
+str(biography)
+```
+
+## Part One
+
+### 1)
+```{r}
+defClean <- defense %>%
+  mutate(Name = as.factor(Name),
+         Opponent_Opponent = as.factor(Opponent_Opponent),
+         Tackles_Solo = as.numeric(Tackles_Solo),
+         Tackles_ASST = as.numeric(Tackles_ASST),
+         Tackles_TFL = as.numeric(Tackles_TFL),
+         Tackles_Sack = as.numeric(Tackles_Sack),
+         Turnover_FF = as.numeric(Turnover_FF),
+         Turnover_FR = as.numeric(Turnover_FR),
+         Turnover_INT = as.numeric(Turnover_INT),
+         Pass_QBH = as.numeric(Pass_QBH),
+         Pass_PB = as.numeric(Pass_PB))
+str(defClean)
+```
+
+### 2)
+```{r}
+offClean <- offense %>%
+  mutate(Name = as.factor(Name),
+         Opponent_Opponent = as.factor(Opponent_Opponent),
+         Receiving_REC = as.numeric(Receiving_REC),
+         Receiving_YDS = as.numeric(Receiving_YDS),
+         Receiving_TD = as.numeric(Receiving_TD),
+         Rushing_ATT = as.numeric(Rushing_ATT),
+         Rushing_YDS = as.numeric(Rushing_YDS),
+         Rushing_TD = as.numeric(Rushing_TD),
+         `Passing_CMP-ATT` = as.numeric(`Passing_CMP-ATT`),
+         Passing_YDS = as.numeric(Passing_YDS),
+         Passing_TD = as.numeric(Passing_TD),
+         Passing_INT = as.numeric(Passing_INT))
+str(offClean)
+```
+
+### 3)
+```{r}
+bio <- biography %>%
+  mutate(Name = as.factor(Name),
+         Weight = as.numeric(Weight))
+str(bio)
+```
+
+```{r}
+bioClean <- bio %>%
+  separate(Height, c('feet','inches'), sep = '-', convert = TRUE, remove = FALSE) %>%
+  mutate(feet = 12*feet + inches) %>%
+  select(-inches) %>%
+  rename(Height_In_Inches = feet) %>%
+  mutate(Height_In_Inches = as.numeric(Height_In_Inches))
+bioClean = subset(bioClean, select = -c(Height))
+str(bioClean)
+```
+
+##Problem 2
+
+## Reformat the offClean data frame into a tidy format using pivot_longer. The type of statistic (Receiving_REC for the number of receivings, Receiving_YDS for receiving yards) is added as a new key column named stat.
+
+### 1)
+
+```{r}
+offClean1 <- offClean %>%
+  pivot_longer(Receiving_REC:Passing_INT, names_to = 'stat', values_to ='value')
+str(offClean1)
+```
+
+##Show on the distributions of the offensive statistics. The distribution of each offensive statsitic should be shown in a separate facet. Explain the patterns you see.
+
+### 2)
+```{r}
+ggplot(offClean1, aes(x=value)) + geom_histogram(binwidth = 30) + facet_wrap(~stat, scales = 'free_y')
+```
+
+### Many of the histograms show that there are null values for the offensive statistics. Only Passing_YDS, Receiving_YDS, Rushing_ATT, and Rushing_YDS have varied distribution. All of these are skewed to the left, and Passing_YDS has some outliers.
+
+
+
+##Did ISU have better offense against Oregon or Oklahoma? Answer this question by creating a scatterplot with the x- and y-axes being the receiving yards of the ISU players against these two opponents. A large number of receiving yards indicates good offense.
+
+### 3)
+```{r}
+offOregon <- offClean[offClean$Opponent_Opponent == 'Oregon',]
+str(offOregon)
+```
+
+```{r}
+offOklahoma <- offClean[offClean$Opponent_Opponent == 'Oklahoma',]
+str(offOklahoma)
+```
+
+```{r}
+ggplot(offOregon, aes(x = Name, y= Receiving_YDS)) + geom_point() + theme(axis.text.x = element_text(angle = 90)) + ggtitle('ISU Player Receiving Yards vs Oregon')
+```
+
+```{r}
+ggplot(offOklahoma, aes(x = Name, y= Receiving_YDS)) + geom_point() + theme(axis.text.x = element_text(angle = 90)) + ggtitle('ISU Player Receiving Yards vs Oklahoma')
+```
+
+### Separate the Hometown column into two columns, namely, the city and the state where the player comes from. Print the first few rows of these two columns. (Hint: look at the sep= argument of separate) 
+
+### 4)
+```{r}
+CityState <- bioClean %>%
+  separate(Hometown, c('City','State'), sep = ',', convert = TRUE, remove = FALSE) %>%
+  select(-Position, -Height_In_Inches, -Weight, -Class, -Hometown, -Highschool) 
+head(CityState)
+```
+
+
+### How many players are there from each state?
+
+### 5)
+```{r}
+PlayersByState <- CityState %>%
+  group_by(State) %>%
+  summarize(count = n())
+PlayersByState
+```
+
+## Part 3
+
+### 1)
+```{r}
+offState <- offClean %>%
+  left_join(CityState, by = c('Name')) %>%
+  select(Name, State) %>%
+  distinct()
+offState
+```
+
+```{r}
+defState <- defClean %>%
+  left_join(CityState, by = c('Name')) %>%
+  select(Name, State) %>%
+  distinct()
+defState
+```
+### 2) How does the performance of quarterback Brock Purdy relate to the performance of the ISU team?
+
+```{r}
+Performance <- bioClean %>%
+  separate(Hometown, c('City','State'), sep = ',', convert = TRUE, remove = FALSE) %>%
+  select(-Height_In_Inches, -Weight, -Class, -Hometown, -Highschool) 
+head(CityState)
+
+
+Performance <- defClean %>%
+  left_join(CityState, by = c('Name')) %>%
+  select(Name, State) %>%
+  distinct()
+defState
+
+```
+
+### 3) Which ISU player(s) made the biggest progress over the last year? Compare the player-level statistics (i.e. averages and totals for each player) using both the 2020 and the 2019 data here. Choose for yourself the player statistics to investigate.
+
+```{r}
+library(readxl)
+defense2 <- read_excel('cyclonesFootball2019.xlsx', sheet='Defensive')
+str(defense)
+offense2 <- read_excel('cyclonesFootball2019.xlsx', sheet='Offensive')
+str(offense)
+biography2 <- read_excel('cyclonesFootball2019.xlsx', sheet='Biography')
+str(biography)
+```
+
+```{r}
+def2Clean <- defense2 %>%
+  mutate(Name = as.factor(Name),
+         Opponent_Opponent = as.factor(Opponent_Opponent),
+         Tackles_Solo = as.numeric(Tackles_Solo),
+         Tackles_ASST = as.numeric(Tackles_ASST),
+         Tackles_TFL = as.numeric(Tackles_TFL),
+         Tackles_Sack = as.numeric(Tackles_Sack),
+         Turnover_FF = as.numeric(Turnover_FF),
+         Turnover_FR = as.numeric(Turnover_FR),
+         Turnover_INT = as.numeric(Turnover_INT),
+         Pass_QBH = as.numeric(Pass_QBH),
+         Pass_PB = as.numeric(Pass_PB))
+str(def2Clean)
+```
+
+```{r}
+def2Clean2 <- def2Clean %>%
+  group_by(Name) %>%
+  summarize_at(vars(Tackles_Solo), list(Total_Solo_Tackles2019 = sum, Mean_Solo_Tackles2019 = mean))
+def2Clean2
+```
+```{r}
+defClean2 <- defClean %>%
+  group_by(Name) %>%
+  summarize_at(vars(Tackles_Solo), list(Total_Solo_Tackles2020 = sum, Mean_Solo_Tackles2020 = mean))
+defClean2
+```
+
+```{r}
+off2Clean <- offense2 %>%
+  mutate(Name = as.factor(Name),
+         Opponent_Opponent = as.factor(Opponent_Opponent),
+         Receiving_REC = as.numeric(Receiving_REC),
+         Receiving_YDS = as.numeric(Receiving_YDS),
+         Receiving_TD = as.numeric(Receiving_TD),
+         Rushing_ATT = as.numeric(Rushing_ATT),
+         Rushing_YDS = as.numeric(Rushing_YDS),
+         Rushing_TD = as.numeric(Rushing_TD),
+         `Passing_CMP-ATT` = as.numeric(`Passing_CMP-ATT`),
+         Passing_YDS = as.numeric(Passing_YDS),
+         Passing_TD = as.numeric(Passing_TD),
+         Passing_INT = as.numeric(Passing_INT))
+str(off2Clean)
+```
+
+```{r}
+off2Clean2 <- off2Clean %>%
+  group_by(Name) %>%
+  summarize_at(vars(Receiving_YDS), list(Total_Receiving_YDS_2019 = sum, Mean_Receiving_YDS2019 = mean))
+off2Clean2
+```
+```{r}
+offClean2 <- offClean %>%
+  group_by(Name) %>%
+  summarize_at(vars(Receiving_YDS), list(Total_Receiving_YDS_2020 = sum, Mean_Receiving_YDS2020 = mean))
+offClean2
+```
+```{r}
+defprogress2019_to_2020 <- def2Clean2 %>% inner_join(defClean2)
+
+defprogress2019_to_2020 <- defprogress2019_to_2020[c("Name", "Total_Solo_Tackles2019", "Total_Solo_Tackles2020", "Mean_Solo_Tackles2019", "Mean_Solo_Tackles2020")]
+
+defprogress2019_to_2020
+
+offprogress2019_to_2020 <- off2Clean2 %>% inner_join(offClean2)
+
+offprogress2019_to_2020 <- offprogress2019_to_2020[c("Name", "Total_Receiving_YDS_2019", "Total_Receiving_YDS_2020", "Mean_Receiving_YDS2019", "Mean_Receiving_YDS2020")]
+
+offprogress2019_to_2020
+```
+
+### For the defense players, JaQuan Bailey made the most progress in total solo tackles from the 2019 season to the 2020 season. He made 18 more solo tackles in 2020 than in 2019. This is the biggest improvement in solo tackles across all the defense players. JaQuan Bailey also made a big leap in mean solo tackles, going from an average of 0.50 in 2019 to an average of 1.67 in 2020.
+
+### For the offense players, Landen Akers made the most progress in total receiving yards from the 2019 season to the 2020 season. He had 160 more receiving yards in 2020 than he did in 2019. He also had the largest change in mean receiving yards, going from an average of 8.38 yards in 2019 to an average of 22.42 yards in 2020.
