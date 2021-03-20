@@ -1,0 +1,238 @@
+---
+title: "Untitled"
+author: "Madeline Egbert"
+date: "03/15/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r}
+library(tidyverse)
+```
+
+```{r}
+library(readxl)
+defense <- read_excel('cyclonesFootball2020.xlsx', sheet = 'Defensive')
+str(defense)
+
+```
+```{r}
+offense <- read_excel('cyclonesFootball2020.xlsx', sheet = 'Offensive')
+str(offense)
+
+```
+```{r}
+biography <- read_excel('cyclonesFootball2020.xlsx', sheet = 'Biography')
+str(biography)
+
+```
+
+#Part1
+#Cleaning Data - Manipulate the three imported data frames, so that in the cleaned dataset:
+
+#1: The player names and opponent names are factors.
+```{r}
+Bio <- biography %>%
+  mutate(Name = as.factor(Name))
+str(Bio)
+```
+
+```{r}
+offClean <- offense %>%
+  mutate(Name = as.factor(Name)) %>%
+  mutate(Opponent = as.factor(Opponent_Opponent))
+offClean = subset(offClean, select = -c(Opponent_Opponent) )
+str(offClean)
+```
+```{r}
+defClean <- defense %>%
+  mutate(Name = as.factor(Name)) %>%
+  mutate(Opponent = as.factor(Opponent_Opponent))
+defClean = subset(defClean, select = -c(Opponent_Opponent) )
+str(defClean)
+```
+
+#2: All offensive and defensive statistics are numerical. The Weight column in biogrpahy is also numeric.
+```{r}
+offClean <- offClean %>% 
+  mutate_if(is.character, as.numeric)
+```
+```{r}
+defClean <- defClean %>% 
+  mutate_if(is.character, as.numeric)
+```
+```{r}
+Bio <- Bio %>%
+  mutate(Weight = as.numeric(Weight))
+```
+
+#3: Change the Height column in biography into numeric. (Hint: Use a unit that works well
+```{r}
+bioClean <- Bio %>%
+  separate(Height,c('feet', 'inches'), sep = '-', convert = TRUE, remove = FALSE) %>%
+  mutate(feet = 12*feet + inches) %>%
+  select(-inches) %>%
+  rename(Height_In_Inches = feet) %>%
+  mutate(Height_In_Inches = as.numeric(Height_In_Inches))
+bioClean = subset(bioClean, select = -c(Height) )
+str(bioClean)
+```
+
+
+#Part2
+
+#1
+```{r}
+offClean1 <- offClean %>%
+  pivot_longer(Receiving_REC:Passing_INT, names_to = 'stat', values_to = 'value')
+str(offClean1)
+```
+#2
+```{r}
+ggplot(offClean1, aes(x=value)) + geom_histogram(binwidth= 30) + facet_wrap(~stat, scales= 'free_y')
+```
+### A lot of the histograms show that they have null values for the offensive stats. Only the Passing_YDS, Receiving_YDS, Rushing_ATT, and Rushing_YDS have varied distributions. All of these are skewed to the left, and Passing_YDS has some outliers. 
+
+#3
+
+
+
+
+
+#4
+```{r}
+CityState <- bioClean %>%
+  separate(Hometown, c('City', 'State'), sep = ',', convert = TRUE, remove = FALSE) %>%
+  select(-Position, -Height_In_Inches, -Weight, -Class, -Hometown, -Highschool)
+head(CityState)
+```
+#5
+```{r}
+PlayersPerState <- CityState %>%
+  group_by(State) %>%
+  summarize(count = n())
+PlayersPerState
+```
+
+
+#Part3
+
+
+#1
+```{r}
+offState <- offClean %>%
+  left_join(CityState, by = c('Name')) %>%
+  select(Name, State) %>%
+  distinct()
+offState
+```
+```{r}
+ggplot(offState, aes(x = Name, y = State)) + geom_point() + theme(axis.text.x = element_text(angle = 90)) + ggtitle('ISU Offense vs. State Origin')
+```
+
+
+
+```{r}
+defState <- defClean %>%
+  left_join(CityState, by = c('Name')) %>%
+  select(Name, State) %>%
+  distinct()
+defState
+```
+
+```{r}
+ggplot(defState, aes(x = Name, y = State)) + geom_point() + theme(axis.text.x = element_text(angle = 90)) + ggtitle('ISU Defense vs. State Origin')
+```
+
+#2
+
+
+#3
+
+```{r}
+def2019 <- read_excel('cyclonesFootball2019.xlsx', sheet = 'Defensive')
+str(def2019)
+
+```
+```{r}
+off2019 <- read_excel('cyclonesFootball2019.xlsx', sheet = 'Offensive')
+str(off2019)
+
+```
+
+```{r}
+bio2019 <- read_excel('cyclonesFootball2019.xlsx', sheet = 'Biography')
+str(bio2019)
+```
+
+
+```{r}
+off2019Clean <- off2019 %>%
+  mutate(Name = as.factor(Name)) %>%
+  mutate(Opponent = as.factor(Opponent_Opponent))
+off2019Clean = subset(off2019Clean, select = -c(Opponent_Opponent))
+str(off2019Clean)
+```
+
+```{r}
+def2019Clean <- def2019 %>%
+  mutate(Name = as.factor(Name)) %>%
+  mutate(Opponent = as.factor(Opponent_Opponent))
+def2019Clean = subset(def2019Clean, select = -c(Opponent_Opponent))
+str(def2019Clean)
+```
+
+```{r}
+off2019Clean <- off2019Clean %>%
+  mutate_if(is.character, as.numeric)
+```
+
+```{r}
+def2019Clean <- def2019Clean %>%
+  mutate_if(is.character, as.numeric)
+```
+
+```{r}
+str(off2019Clean)
+```
+
+```{r}
+str(def2019Clean)
+```
+
+```{r}
+def2019Clean <- def2019Clean %>%
+  group_by(Name) %>%
+  summarize_at(vars(Tackles_Solo), list(Total_Solo_Tackles2019 = sum, Mean_Solo_Tackles2019 = mean))
+def2019Clean
+```
+
+
+
+
+
+```{r}
+off2019Clean <- off2019Clean %>%
+  group_by(Name) %>%
+  summarize_at(vars(Receiving_YDS), list(Total_Receiving_YDS_2019 = sum, Mean_Receiving_YDS2019 = mean))
+off2019Clean
+```
+
+
+
+
+```{r}
+defprogress2019_to_2020 <- def2019Clean %>% inner_join(defClean)
+defprogress2019_to_2020
+```
+
+
+```{r}
+offprogress2019_to_2020 <- off2019Clean %>% 
+  inner_join(offClean)
+offprogress2019_to_2020
+```
+
+
